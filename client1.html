@@ -11,6 +11,7 @@
         .message { margin-bottom: 10px; }
         .sent { text-align: right; color: #0d6efd; }
         .received { text-align: left; color: #198754; }
+        .status { text-align: center; color: #6c757d; font-style: italic; } /* Thêm định dạng cho thông báo trạng thái */
     </style>
 </head>
 <body>
@@ -37,6 +38,7 @@
 
         ws.onopen = () => {
             console.log("Kết nối WebSocket thành công");
+            displayMessage("Đã kết nối tới server", "status");
         };
 
         ws.onmessage = (event) => {
@@ -45,7 +47,7 @@
                 const iv = atob(data.iv);
                 const cipher = atob(data.cipher);
                 const decrypted = decryptMessage(iv, cipher);
-                displayMessage(decrypted, 'received');
+                displayMessage(decrypted, "received");
             } catch (e) {
                 console.error("Lỗi xử lý tin nhắn:", e);
             }
@@ -53,10 +55,12 @@
 
         ws.onerror = (error) => {
             console.error("Lỗi WebSocket:", error);
+            displayMessage("Lỗi kết nối tới server", "status");
         };
 
         ws.onclose = () => {
             console.log("Kết nối WebSocket đóng");
+            displayMessage("Kết nối bị đóng", "status");
         };
 
         function sendMessage() {
@@ -69,7 +73,7 @@
                     cipher: btoa(encrypted.cipher)
                 };
                 ws.send(JSON.stringify(messageData));
-                displayMessage(message, 'sent');
+                displayMessage(message, "sent");
                 input.value = "";
             }
         }
