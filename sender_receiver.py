@@ -6,7 +6,7 @@ from Crypto.Cipher import AES
 
 # --- Cấu hình ---
 LISTEN_PORT = 6000
-REMOTE_IP = '172.16.0.69'  # Thay bằng IP của bên kia
+REMOTE_IP = '172.16.29.149'  # Thay bằng IP của bên kia
 REMOTE_PORT = 6000
 
 # --- Padding / Unpadding ---

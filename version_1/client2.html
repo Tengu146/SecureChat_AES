@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Bảo mật - Client 22</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-container { max-width: 600px; margin: 20px auto; }
+        .messages { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f8f9fa; }
+        .message { margin-bottom: 10px; }
+        .sent { text-align: right; color: #0d6efd; }
+        .received { text-align: left; color: #198754; }
+        .status { text-align: center; color: #6c757d; font-style: italic; } /* Thêm định dạng cho thông báo trạng thái */
+    </style>
+</head>
+<body>
+    <div class="container chat-container">
+        <h1 class="text-center mb-4">Chat Bảo mật - Client 22</h1>
+        <div id="messages" class="messages rounded"></div>
+        <div class="input-group mt-3">
+            <input type="text" id="messageInput" class="form-control" placeholder="Nhập tin nhắn...">
+            <button class="btn btn-primary" onclick="sendMessage()">Gửi</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const AES_KEY = new Uint8Array([
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+        ]);
+
+        let ws = new WebSocket("ws://localhost:8765");
+
+        ws.onopen = () => {
+            console.log("Kết nối WebSocket thành công");
+            displayMessage("Đã kết nối tới server", "status");
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                const iv = atob(data.iv);
+                const cipher = atob(data.cipher);
+                const decrypted = decryptMessage(iv, cipher);
+                displayMessage(decrypted, "received");
+            } catch (e) {
+                console.error("Lỗi xử lý tin nhắn:", e);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error("Lỗi WebSocket:", error);
+            displayMessage("Lỗi kết nối tới server", "status");
+        };
+
+        ws.onclose = () => {
+            console.log("Kết nối WebSocket đóng");
+            displayMessage("Kết nối bị đóng", "status");
+        };
+
+        function sendMessage() {
+            const input = document.getElementById("messageInput");
+            const message = input.value.trim();
+            if (message && ws.readyState === WebSocket.OPEN) {
+                const encrypted = encryptMessage(message);
+                const messageData = {
+                    iv: btoa(encrypted.iv),
+                    cipher: btoa(encrypted.cipher)
+                };
+                ws.send(JSON.stringify(messageData));
+                displayMessage(message, "sent");
+                input.value = "";
+            }
+        }
+
+        function encryptMessage(message) {
+            const iv = CryptoJS.lib.WordArray.random(16);
+            const key = CryptoJS.lib.WordArray.create(AES_KEY);
+            const encrypted = CryptoJS.AES.encrypt(message, key, {
+                iv: iv,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7
+            });
+            return {
+                iv: iv.toString(CryptoJS.enc.Latin1),
+                cipher: encrypted.ciphertext.toString(CryptoJS.enc.Latin1)
+            };
+        }
+
+        function decryptMessage(iv, cipher) {
+            const key = CryptoJS.lib.WordArray.create(AES_KEY);
+            const decrypted = CryptoJS.AES.decrypt(
+                { ciphertext: CryptoJS.enc.Latin1.parse(cipher) },
+                key,
+                { iv: CryptoJS.enc.Latin1.parse(iv), mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+            );
+            return decrypted.toString(CryptoJS.enc.Utf8);
+        }
+
+        function displayMessage(message, type) {
+            const messagesDiv = document.getElementById("messages");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
